@@ -1,24 +1,68 @@
 import json
-import socket
 import struct
-from time import time
-  
+import os
+import socket
+from enum import IntEnum
 
+class SensorPackets(IntEnum):
+    TIME = 0
+    TEMP = 1
+    ACCX = 2
+    ACCY = 3
+    ACCZ = 4
+    GYROX = 5
+    GYROY = 6
+    GYROZ = 7
 
-def receive_data(ip, port):
-
+def recieve_continous(host, port, num_sensors):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((ip, port))
+        s.connect((host, port))
         while True:
-            data = s.recv(4)  # 4 bytes for a float
-            if not data:
-                break
-            temp = struct.unpack('f', data)[0]
-            print("Received:", temp)
-
+            sensor_data = [0] * 8
+            for _ in range(num_sensors):
+                id_bytes = s.recv(4)  # Assuming 4-byte enum
+                packet_type = SensorPackets(struct.unpack('<I', id_bytes)[0])
+                
+                if packet_type == SensorPackets.TIME:
+                    data = s.recv(4)  # Receive 4 bytes for the int
+                    if len(data) < 4:
+                        raise ValueError("Incomplete data received")
+                    float_value = struct.unpack('<I', data)[0]  # '<f' for little-endian float
+                else:
+                    data = s.recv(4)  # Receive 4 bytes for the float
+                    if len(data) < 4:
+                        raise ValueError("Incomplete data received")
+                    float_value = struct.unpack('<f', data)[0]  # '<f' for little-endian float
+                sensor_data[packet_type.value] = float_value
+            print(sensor_data)
+              
+def recieve_row(host, port, num_sensors):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((host, port))
+        sensor_data = [0] * 8
+        for _ in range(num_sensors):
+            id_bytes = s.recv(4)  # Assuming 4-byte enum
+            packet_type = SensorPackets(struct.unpack('<I', id_bytes)[0])
+            
+            if packet_type == SensorPackets.TIME:
+                data = s.recv(4)  # Receive 4 bytes for the int
+                if len(data) < 4:
+                    raise ValueError("Incomplete data received")
+                float_value = struct.unpack('<I', data)[0]  # '<f' for little-endian float
+            else:
+                data = s.recv(4)  # Receive 4 bytes for the float
+                if len(data) < 4:
+                    raise ValueError("Incomplete data received")
+                float_value = struct.unpack('<f', data)[0]  # '<f' for little-endian float
+            sensor_data[packet_type.value] = float_value
+        return sensor_data
+                
 if __name__ == "__main__":
-    
-    with (open("config.json", "r")) as file:
+    file_name = "v1_wifi"
+    save_file_path = os.path.join("data", "bmi270", "static", file_name + ".csv")
+
+    with open("config.json", "r") as file:
         config = json.load(file)
-    
-    receive_data(config["ip"], config["wifi_port"])
+        
+    print(recieve_row(config["ip"], config["wifi_port"], 8))
+    recieve_continous(config["ip"], config["wifi_port"], 8)

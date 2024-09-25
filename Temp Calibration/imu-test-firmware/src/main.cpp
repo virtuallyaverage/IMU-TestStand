@@ -7,6 +7,8 @@ BMI270 imu;
 
 void setup() {
   Serial.begin(115200);
+  //start new line after startup garbage
+  Serial.println("");
 
   //wait for serial to send when doing serial
   //while(!Serial.available());
@@ -32,9 +34,11 @@ void loop() {
   ticks += 1;
 
   if (ticks >= 1000) {
+    time_t now = millis();
     Serial.print("Ticks/s: ");
-    Serial.println(1000/((startTime-millis())/ 1000.0));
+    Serial.println(1000./((now-startTime)/1000.));
     ticks = 0;
+    startTime = now;
   }
 
 
