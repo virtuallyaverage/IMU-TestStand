@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../imu-firmware"
+		},
+		{
+			"name": "imu-test-firmware",
+			"path": ".."
+		}
+	],
+	"settings": {}
+}

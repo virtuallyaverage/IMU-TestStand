@@ -1,5 +1,5 @@
 #include "bmi270.h"
-
+#include "config.h"
 
 bool setupBMI(BMI270 &imu)
 {
