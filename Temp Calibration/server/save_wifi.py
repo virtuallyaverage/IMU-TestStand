@@ -74,10 +74,18 @@ class wifiBoard():
         self.stopWriting = False
         with open(os.path.join(path, filename+".csv"), mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow("Temp,AccelX,AccelY,AccelZ,GyroX,GyroY,GyroZ,Millis")
+            
+            #write header
+            writer.writerow(self.list_values())
             
             while not self.stopWriting:
                 writer.writerow(self.get_line())
+                
+    def list_values(self):
+        columns = []
+        for sensor in SensorPackets:
+            columns.append(sensor.name)
+        return columns
 
             
 if __name__ == "__main__":
