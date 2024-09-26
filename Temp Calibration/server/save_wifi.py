@@ -89,8 +89,8 @@ class wifiBoard():
 
             
 if __name__ == "__main__":
-    file_name = "v1_wifi"
-    save_file_path = os.path.join("data", "bmi270", "static")
+    file_name = "0.1-0.8accelV1"
+    save_file_path = os.path.join("data", "bmi270", "bed_accel")
 
     with open("config.json", "r") as file:
         config = json.load(file)
