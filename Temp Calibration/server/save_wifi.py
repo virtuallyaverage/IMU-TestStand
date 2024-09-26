@@ -1,9 +1,9 @@
-import csv
 import json
 import struct
 import os
 import socket
 from enum import IntEnum
+import csv
 
 class SensorPackets(IntEnum):
     TIME = 0
@@ -15,25 +15,79 @@ class SensorPackets(IntEnum):
     GYROY = 6
     GYROZ = 7
 
-def recieve_data(host, port, num_sensors):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((host, port))
-        sensor_data = {}
-        for _ in range(num_sensors):
-            id_bytes = s.recv(4)  # Assuming 4-byte enum
-            packet_type = SensorPackets(struct.unpack('<I', id_bytes)[0])
-            data = s.recv(4)  # Receive 4 bytes for the float
-            if len(data) < 4:
-                raise ValueError("Incomplete data received")
-            float_value = struct.unpack('<f', data)[0]  # '<f' for little-endian float
-            sensor_data[packet_type] = float_value
+class wifiBoard():
+    def __init__(self, ip, port) -> None:
+        self.port = port
+        self.ip = ip
+        self.board = None
+        self.packet_size = (4 + 4) * len(SensorPackets)  # 4 bytes for enum + 4 bytes for float/int
+        self.stopWriting = True
+
+    def connect(self):
+        self.board = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.board.connect((self.ip, self.port))
+        if self.board:
+            return True
+        return False
+             
+    def get_line(self):
+        sensor_data = [0] * len(SensorPackets)
+        offset = 0
+        # empty packet
+        data = b''
+        
+        if (self.board == None):
+            #try to connect, return if unable to reach board
+            if not self.connect():
+                raise ValueError("Could not connect to board")
+
+        # Loop to receive the complete data packet
+        while len(data) < self.packet_size:
+            packet_part = self.board.recv(self.packet_size - len(data))
+            if not packet_part:
+                raise ValueError("Connection closed by the server")
+            data += packet_part
+
+        for _ in SensorPackets:
+            # Unpack the packet id
+            packet_id = struct.unpack_from('<I', data, offset)[0]
+            offset += 4
+
+            # Unpack the float/int value
+            if packet_id == SensorPackets.TIME.value:
+                float_value = struct.unpack_from('<I', data, offset)[0]
+            else:
+                float_value = struct.unpack_from('<f', data, offset)[0]
+            offset += 4
+
+            sensor_data[SensorPackets(packet_id).value] = float_value
+            
         return sensor_data
-                
+    
+    def save_to_csv(self, path, filename):
+        """Starts saving data from the board to a csv file with directory and file name. DO NOT INCLUDE .CSV
+
+        Args:
+            path (str): path to save file
+            filename (str): file name to save under (don't include extension)
+        """
+        self.stopWriting = False
+        with open(os.path.join(path, filename+".csv"), mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow("Temp,AccelX,AccelY,AccelZ,GyroX,GyroY,GyroZ,Millis")
+            
+            while not self.stopWriting:
+                writer.writerow(self.get_line())
+
+            
 if __name__ == "__main__":
     file_name = "v1_wifi"
-    save_file_path = os.path.join("data", "bmi270", "static", file_name + ".csv")
+    save_file_path = os.path.join("data", "bmi270", "static")
 
     with open("config.json", "r") as file:
         config = json.load(file)
-        
-    print(save_data(config["ip"], config["wifi_port"], save_file_path))
+
+    board = wifiBoard(config["ip"], config["wifi_port"])
+    
+    board.connect()
+    board.save_to_csv(save_file_path, file_name)

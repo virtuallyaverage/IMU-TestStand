@@ -66,32 +66,74 @@ bool tryConnectServer() {
 
 void sendWifiSensor(BMI270 &imu) {
     if (!client) {
-        tryConnectServer();
-        LOG_ERROR(F("Server not found"));
-        return;
+        if (!tryConnectServer()) {
+            LOG_ERROR(F("Server not found"));
+            return;
+        }
     }
 
-    // the sensor data, otherwise it will never update
     imu.getSensorData();
     time_t currentTime = millis();
-
-    // fill temp with temperature
     float temp = 0;
     imu.getTemperature(&temp);
 
-    //timestamp
-    sendTime(client, TIME, currentTime);
+    // Correct buffer size: 8 enums + 8 floats
+    uint8_t buffer[(sizeof(SensorPackets) + sizeof(float_t)) * 8];
+    uint8_t* ptr = buffer;
 
-    //send temperature
-    sendFloat(client, TEMP, temp);
+    // Add timestamp
+    SensorPackets packetType = TIME;
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    float time_float = static_cast<float>(currentTime);
+    memcpy(ptr, &time_float, sizeof(float_t));
+    ptr += sizeof(float_t);
 
-    //Linear Accel
-    sendFloat(client, ACCX, imu.data.accelX);
-    sendFloat(client, ACCY, imu.data.accelY);
-    sendFloat(client, ACCZ, imu.data.accelZ);
+    // Add temperature
+    packetType = TEMP;
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    memcpy(ptr, &temp, sizeof(float_t));
+    ptr += sizeof(float_t);
 
-    //Gyro Rate
-    sendFloat(client, GYROX, imu.data.gyroX);
-    sendFloat(client, GYROY, imu.data.gyroX);
-    sendFloat(client, GYROZ, imu.data.gyroZ);
+    // Add accelerometer data
+    packetType = ACCX;
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    memcpy(ptr, &imu.data.accelX, sizeof(float_t));
+    ptr += sizeof(float_t);
+
+    packetType = ACCY;
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    memcpy(ptr, &imu.data.accelY, sizeof(float_t));
+    ptr += sizeof(float_t);
+
+    packetType = ACCZ;
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    memcpy(ptr, &imu.data.accelZ, sizeof(float_t));
+    ptr += sizeof(float_t);
+
+    // Add gyro data
+    packetType = GYROX;
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    memcpy(ptr, &imu.data.gyroX, sizeof(float_t));
+    ptr += sizeof(float_t);
+
+    packetType = GYROY;
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    memcpy(ptr, &imu.data.gyroY, sizeof(float_t));
+    ptr += sizeof(float_t);
+
+    packetType = GYROZ;
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    memcpy(ptr, &imu.data.gyroZ, sizeof(float_t));
+    ptr += sizeof(float_t);
+
+    // Send all data in one go
+    client.write(buffer, ptr - buffer);
 }
