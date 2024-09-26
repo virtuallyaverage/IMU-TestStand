@@ -73,7 +73,6 @@ void sendWifiSensor(BMI270 &imu) {
     }
 
     imu.getSensorData();
-    time_t currentTime = millis();
     float temp = 0;
     imu.getTemperature(&temp);
 
@@ -82,11 +81,11 @@ void sendWifiSensor(BMI270 &imu) {
     uint8_t* ptr = buffer;
 
     // Add timestamp
+    time_t currentTime = millis();
     SensorPackets packetType = TIME;
     memcpy(ptr, &packetType, sizeof(SensorPackets));
     ptr += sizeof(SensorPackets);
-    float time_float = static_cast<float>(currentTime);
-    memcpy(ptr, &time_float, sizeof(float_t));
+    memcpy(ptr, &currentTime, sizeof(float_t));
     ptr += sizeof(float_t);
 
     // Add temperature

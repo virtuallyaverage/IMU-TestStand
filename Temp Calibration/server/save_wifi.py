@@ -55,7 +55,7 @@ class wifiBoard():
 
             # Unpack the float/int value
             if packet_id == SensorPackets.TIME.value:
-                float_value = struct.unpack_from('<I', data, offset)[0]
+                float_value = struct.unpack_from('<q', data, offset)[0]
             else:
                 float_value = struct.unpack_from('<f', data, offset)[0]
             offset += 4
