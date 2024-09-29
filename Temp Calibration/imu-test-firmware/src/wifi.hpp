@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "DebugLog.h"
+#include "profile.h"
 
 WiFiServer server(80);
 WiFiClient client;
@@ -48,7 +49,31 @@ uint8_t buffer[(sizeof(SensorPackets) + sizeof(float_t)) * 8 * BUNDLE_SIZE];
 uint8_t* ptr = buffer;
 int readingsCount = 0;
 
-void sendWifiSensor(BMI270 &imu) {
+void sendDataToClient(WiFiClient &client, uint8_t *buffer, size_t size) {
+    if (client) {
+        client.write(buffer, size);
+    } else {
+        LOG_ERROR(F("Client not connected"));
+    }
+}
+
+void addSensorDataToBuffer(uint8_t*& ptr, SensorPackets packetType, float value) {
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    memcpy(ptr, &value, sizeof(float_t));
+    ptr += sizeof(float_t);
+}
+
+void addTimestampToBuffer(uint8_t*& ptr) {
+    time_t currentTime = millis();
+    SensorPackets packetType = TIME;
+    memcpy(ptr, &packetType, sizeof(SensorPackets));
+    ptr += sizeof(SensorPackets);
+    memcpy(ptr, &currentTime, sizeof(float_t));
+    ptr += sizeof(float_t);
+}
+
+void TickWifiSensor(BMI270 &imu) {
     if (!client) {
         if (!tryConnectServer()) {
             LOG_ERROR(F("Server not found"));
@@ -61,63 +86,26 @@ void sendWifiSensor(BMI270 &imu) {
     imu.getTemperature(&temp);
 
     // Add timestamp
-    time_t currentTime = millis();
-    SensorPackets packetType = TIME;
-    memcpy(ptr, &packetType, sizeof(SensorPackets));
-    ptr += sizeof(SensorPackets);
-    memcpy(ptr, &currentTime, sizeof(float_t));
-    ptr += sizeof(float_t);
+    addTimestampToBuffer(ptr);
 
     // Add temperature
-    packetType = TEMP;
-    memcpy(ptr, &packetType, sizeof(SensorPackets));
-    ptr += sizeof(SensorPackets);
-    memcpy(ptr, &temp, sizeof(float_t));
-    ptr += sizeof(float_t);
+    addSensorDataToBuffer(ptr, TEMP, temp);
 
     // Add accelerometer data
-    packetType = ACCX;
-    memcpy(ptr, &packetType, sizeof(SensorPackets));
-    ptr += sizeof(SensorPackets);
-    memcpy(ptr, &imu.data.accelX, sizeof(float_t));
-    ptr += sizeof(float_t);
-
-    packetType = ACCY;
-    memcpy(ptr, &packetType, sizeof(SensorPackets));
-    ptr += sizeof(SensorPackets);
-    memcpy(ptr, &imu.data.accelY, sizeof(float_t));
-    ptr += sizeof(float_t);
-
-    packetType = ACCZ;
-    memcpy(ptr, &packetType, sizeof(SensorPackets));
-    ptr += sizeof(SensorPackets);
-    memcpy(ptr, &imu.data.accelZ, sizeof(float_t));
-    ptr += sizeof(float_t);
+    addSensorDataToBuffer(ptr, ACCX, imu.data.accelX);
+    addSensorDataToBuffer(ptr, ACCY, imu.data.accelY);
+    addSensorDataToBuffer(ptr, ACCZ, imu.data.accelZ);
 
     // Add gyro data
-    packetType = GYROX;
-    memcpy(ptr, &packetType, sizeof(SensorPackets));
-    ptr += sizeof(SensorPackets);
-    memcpy(ptr, &imu.data.gyroX, sizeof(float_t));
-    ptr += sizeof(float_t);
-
-    packetType = GYROY;
-    memcpy(ptr, &packetType, sizeof(SensorPackets));
-    ptr += sizeof(SensorPackets);
-    memcpy(ptr, &imu.data.gyroY, sizeof(float_t));
-    ptr += sizeof(float_t);
-
-    packetType = GYROZ;
-    memcpy(ptr, &packetType, sizeof(SensorPackets));
-    ptr += sizeof(SensorPackets);
-    memcpy(ptr, &imu.data.gyroZ, sizeof(float_t));
-    ptr += sizeof(float_t);
+    addSensorDataToBuffer(ptr, GYROX, imu.data.gyroX);
+    addSensorDataToBuffer(ptr, GYROY, imu.data.gyroY);
+    addSensorDataToBuffer(ptr, GYROZ, imu.data.gyroZ);
 
     readingsCount++;
 
     // Send data if BUNDLE_SIZE is reached
     if (readingsCount >= BUNDLE_SIZE) {
-        client.write(buffer, ptr - buffer);
+        sendDataToClient(client, buffer, ptr - buffer);
         ptr = buffer; // Reset pointer
         readingsCount = 0; // Reset count
     }

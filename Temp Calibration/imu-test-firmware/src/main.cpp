@@ -30,7 +30,7 @@ void loop() {
   //serial output data
   //printSensor(imu);
 
-  sendWifiSensor(imu);
+  TickWifiSensor(imu);
   ticks += 1;
 
   if (ticks >= 1000) {
