@@ -89,13 +89,13 @@ class wifiBoard():
 
             
 if __name__ == "__main__":
-    file_name = "0.1-0.8accelV1"
-    save_file_path = os.path.join("data", "bmi270", "bed_accel")
+    file_name = "T1003_IMU1"
+    save_file_path = os.path.join("data", "bmi270", "static", "Const")
 
     with open("config.json", "r") as file:
         config = json.load(file)
 
-    board = wifiBoard(config["ip"], config["wifi_port"])
+    board = wifiBoard("192.168.1.100", 80) #"192.168.1.101")
     
     board.connect()
     board.save_to_csv(save_file_path, file_name)

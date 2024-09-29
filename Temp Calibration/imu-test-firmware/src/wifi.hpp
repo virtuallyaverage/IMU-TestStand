@@ -34,27 +34,6 @@ bool setupWifi() {
     return true;
 }
 
-bool sendFloat(WiFiClient &client, SensorPackets packetType, float_t input) {
-    if (client) {
-        client.write((const char*)&packetType, sizeof(SensorPackets)); // Send the enum value
-        client.write((const char*)&input, sizeof(float_t)); // Send the float
-        return true;
-    } else {
-        return false;
-    }
-}
-
-bool sendTime(WiFiClient &client, SensorPackets packetType, time_t input) {
-    float time_float = static_cast<float>(input);
-    if (client) {
-        client.write((const char*)&packetType, sizeof(SensorPackets)); // Send the enum value
-        client.write((const char*)&time_float, sizeof(float_t)); // Send the float
-        return true;
-    } else {
-        return false;
-    }
-}
-
 bool tryConnectServer() {
     client = server.accept();
     if (client) {
@@ -63,6 +42,11 @@ bool tryConnectServer() {
         return false;
     }
 }
+
+// Adjust buffer size to accommodate BUNDLE_SIZE readings
+uint8_t buffer[(sizeof(SensorPackets) + sizeof(float_t)) * 8 * BUNDLE_SIZE];
+uint8_t* ptr = buffer;
+int readingsCount = 0;
 
 void sendWifiSensor(BMI270 &imu) {
     if (!client) {
@@ -75,10 +59,6 @@ void sendWifiSensor(BMI270 &imu) {
     imu.getSensorData();
     float temp = 0;
     imu.getTemperature(&temp);
-
-    // Correct buffer size: 8 enums + 8 floats
-    uint8_t buffer[(sizeof(SensorPackets) + sizeof(float_t)) * 8];
-    uint8_t* ptr = buffer;
 
     // Add timestamp
     time_t currentTime = millis();
@@ -133,6 +113,12 @@ void sendWifiSensor(BMI270 &imu) {
     memcpy(ptr, &imu.data.gyroZ, sizeof(float_t));
     ptr += sizeof(float_t);
 
-    // Send all data in one go
-    client.write(buffer, ptr - buffer);
+    readingsCount++;
+
+    // Send data if BUNDLE_SIZE is reached
+    if (readingsCount >= BUNDLE_SIZE) {
+        client.write(buffer, ptr - buffer);
+        ptr = buffer; // Reset pointer
+        readingsCount = 0; // Reset count
+    }
 }

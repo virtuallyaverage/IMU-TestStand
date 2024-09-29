@@ -41,7 +41,4 @@ void loop() {
     startTime = now;
   }
 
-
-  
-
 }

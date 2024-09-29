@@ -1,20 +1,13 @@
-import pandas as pd
 import matplotlib.pyplot as plt
-from io import StringIO
 import numpy as np
 from scipy.interpolate import make_interp_spline
-from scipy.stats import linregress
+import os
 
-from post_process_serial import get_dataframe, get_file
-
-# Function to plot best-fit line
-def plot_best_fit(ax, x, y, label):
-    slope, intercept, rvalue, _, _ = linregress(x, y)
-    ax.plot(x, slope * x + intercept, label=f'{label} Best Fit: Slope:{slope}  R2:{rvalue**2: .2f}', linestyle='--')
+from utils import get_dataframe, plot_best_fit
 
 if __name__ == "__main__":
-    file_name = "0.1-0.8accelV1"
-    directory = r"data\bmi270\bed_accel"
+    file_name = "T1003_IMU1"
+    directory = os.path.join("data", "bmi270", "static", "Const")
     
     # Handle file conversion and get data read from file
     dataframe = get_dataframe(directory=directory, file_name=file_name)
@@ -34,8 +27,8 @@ if __name__ == "__main__":
     marker_style = {'marker': '+', 's': 2}
     
     # trim to desired temperature
-    min_value = 0
-    max_value = 48
+    min_value = 6
+    max_value = 500
     first_index = dataframe[(dataframe['TEMP'] >= min_value) & (dataframe['TEMP'] <= max_value)].index[0]
     dataframe = dataframe.loc[first_index:]
     

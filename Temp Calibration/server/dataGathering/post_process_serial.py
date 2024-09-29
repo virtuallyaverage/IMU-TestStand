@@ -33,23 +33,7 @@ def process_file(file_name: str, in_directory: str, in_format: str = ".bin", out
             writer.writerow(line[:-1].split(',')) # drop exta row
             
 def get_dataframe(directory, file_name):
-    return pd.read_csv(StringIO(get_file(directory, file_name)))
-      
-def get_file(directory, file_name):
-    """Gets file if already processed, processes if it Hasn't been already
-
-    Args:
-        directory (_type_): _description_
-        file_name (_type_): _description_
-
-    Returns:
-        raw_csv: raw csv_data
-    """
-    try:
-        return open_csv(directory, file_name)
-    except FileNotFoundError as e:
-        process_file(file_name, directory)
-        return open_csv(directory, file_name)
+    return pd.read_csv(StringIO(open_csv(directory, file_name)))
           
 def open_csv(directory, file_name):
     with (open(directory+"\\"+file_name+".csv", 'r')) as file:
